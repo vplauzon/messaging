@@ -1,0 +1,105 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "topicNamePrefix": {
+            "type": "string",
+            "minLength": 1,
+            "metadata": {
+                "description": "Prefix Event Grid Topics' names"
+            }
+        },
+        "topicCount": {
+            "type": "int",
+            "metadata": {
+                "description": "Number of Event Topics"
+            }
+        },
+        "eventHubNamespacePrefix": {
+            "type": "string",
+            "minLength": 1,
+            "metadata": {
+                "description": "Prefix Event Hubs' names"
+            }
+        },
+        "eventHubNamespaceCount": {
+            "type": "int",
+            "metadata": {
+                "description": "Number of Event Hub Namespaces"
+            }
+        }
+    },
+    "variables": {
+        "alphabet": "ABCDEFGHIJKLMNOPQRSTUVXYZ"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.EventGrid/topics",
+            "apiVersion": "2019-06-01",
+            "copy": {
+                "count": "[parameters('topicCount')]",
+                "name": "topic-loop"
+            },
+            "name": "[concat(parameters('topicNamePrefix'), '-', add(1, copyIndex()))]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+            }
+        },
+        {
+            "type": "Microsoft.EventHub/namespaces",
+            "apiVersion": "2017-04-01",
+            "copy": {
+                "count": "[parameters('eventHubNamespaceCount')]",
+                "name": "namespace-loop"
+            },
+            "name": "[concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), copyIndex(), 1))]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard",
+                "tier": "Standard",
+                "capacity": 1
+            },
+            "properties": {
+                "zoneRedundant": false,
+                "isAutoInflateEnabled": false,
+                "maximumThroughputUnits": 0,
+                "kafkaEnabled": true
+            },
+            "resources": [
+                {
+                    "type": "AuthorizationRules",
+                    "apiVersion": "2017-04-01",
+                    "name": "RootManageSharedAccessKey",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.EventHub/namespaces', concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), copyIndex(), 1)))]"
+                    ],
+                    "properties": {
+                        "rights": [
+                            "Listen",
+                            "Manage",
+                            "Send"
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.EventHub/namespaces/eventhubs",
+            "apiVersion": "2017-04-01",
+            "copy": {
+                "count": "[mul(parameters('topicCount'), parameters('eventHubNamespaceCount'))]",
+                "name": "hub-loop"
+            },
+            "name": "[concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '/hub-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '-', add(1, mod(copyIndex(), parameters('topicCount'))))]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.EventHub/namespaces', concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1)))]"
+            ],
+            "properties": {
+                "messageRetentionInDays": 1,
+                "partitionCount": 1
+            }
+        }
+    ]
+}
