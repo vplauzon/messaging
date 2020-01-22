@@ -2,75 +2,23 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "topicNamePrefix": {
-            "type": "string",
-            "minLength": 1,
-            "metadata": {
-                "description": "Prefix Event Grid Topics' names"
-            }
-        },
-        "topicCount": {
-            "type": "int",
-            "metadata": {
-                "description": "Number of Event Topics"
-            }
-        },
-        "eventHubNamespacePrefix": {
-            "type": "string",
-            "minLength": 1,
-            "metadata": {
-                "description": "Prefix Event Hubs' names"
-            }
-        },
-        "eventHubNamespaceCount": {
-            "type": "int",
-            "metadata": {
-                "description": "Number of Event Hub Namespaces"
-            }
-        },
-        "storageAccountName": {
-            "type": "string",
-            "minLength": 1,
-            "metadata": {
-                "description": "Name of the storage account for functions"
-            }
-        },
-        "functionAppName": {
-            "type": "string",
-            "minLength": 1,
-            "metadata": {
-                "description": "Name of function app hosting functions that will feed the topics"
-            }
-        }
     },
     "variables": {
+        "unique suffix": "[uniqueString(resourceGroup().id)]",
+        "event hub namespace": "[concat('event-hub-', variables('unique suffix'))]",
+        "event hub name": "department-hub",
+        "topic name": "[concat('topic-', variables('unique suffix'))]",
+        "event subscription name": "event-hub-subscription",
+        "storage name": "[concat('storage', variables('unique suffix'))]",
         "app plan name": "demo-app-plan",
-        "alphabet": "ABCDEFGHIJKLMNOPQRSTUVXYZ",
-        "event hub prefix": "hub",
-        "event subscription prefix": "sub"
+        "function app name": "[concat('function-app-', variables('unique suffix'))]",
+        "event count": 50
     },
     "resources": [
         {
-            "type": "Microsoft.EventGrid/topics",
-            "apiVersion": "2019-06-01",
-            "copy": {
-                "count": "[parameters('topicCount')]",
-                "name": "topic-loop"
-            },
-            "name": "[concat(parameters('topicNamePrefix'), '-', add(1, copyIndex()))]",
-            "location": "[resourceGroup().location]",
-            "properties": {
-                "inputSchema": "CloudEventV01Schema"
-            }
-        },
-        {
             "type": "Microsoft.EventHub/namespaces",
             "apiVersion": "2017-04-01",
-            "copy": {
-                "count": "[parameters('eventHubNamespaceCount')]",
-                "name": "namespace-loop"
-            },
-            "name": "[concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), copyIndex(), 1))]",
+            "name": "[variables('event hub namespace')]",
             "location": "[resourceGroup().location]",
             "sku": {
                 "name": "Standard",
@@ -85,12 +33,25 @@
             },
             "resources": [
                 {
+                    "type": "eventhubs",
+                    "apiVersion": "2017-04-01",
+                    "name": "[variables('event hub name')]",
+                    "location": "[resourceGroup().location]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.EventHub/namespaces', variables('event hub namespace'))]"
+                    ],
+                    "properties": {
+                        "messageRetentionInDays": 1,
+                        "partitionCount": 1
+                    }
+                },
+                {
                     "type": "AuthorizationRules",
                     "apiVersion": "2017-04-01",
                     "name": "RootManageSharedAccessKey",
                     "location": "[resourceGroup().location]",
                     "dependsOn": [
-                        "[resourceId('Microsoft.EventHub/namespaces', concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), copyIndex(), 1)))]"
+                        "[resourceId('Microsoft.EventHub/namespaces', variables('event hub namespace'))]"
                     ],
                     "properties": {
                         "rights": [
@@ -103,41 +64,27 @@
             ]
         },
         {
-            "type": "Microsoft.EventHub/namespaces/eventhubs",
-            "apiVersion": "2017-04-01",
-            "copy": {
-                "count": "[mul(parameters('topicCount'), parameters('eventHubNamespaceCount'))]",
-                "name": "hub-loop"
-            },
-            "name": "[concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '/', variables('event hub prefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '-', add(1, mod(copyIndex(), parameters('topicCount'))))]",
+            "type": "Microsoft.EventGrid/topics",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('topic name')]",
             "location": "[resourceGroup().location]",
-            "dependsOn": [
-                "[resourceId('Microsoft.EventHub/namespaces', concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1)))]"
-            ],
             "properties": {
-                "messageRetentionInDays": 1,
-                "partitionCount": 1
             }
         },
         {
             "type": "Microsoft.EventGrid/topics/providers/eventSubscriptions",
             "apiVersion": "2019-06-01",
-            "copy": {
-                "count": "[mul(parameters('topicCount'), parameters('eventHubNamespaceCount'))]",
-                "name": "hub-loop"
-            },
-            "name": "[concat(parameters('topicNamePrefix'), '-', add(1, mod(copyIndex(), parameters('topicCount'))), '/Microsoft.EventGrid/', variables('event subscription prefix'), '-', add(1, div(copyIndex(), parameters('topicCount'))))]",
+            "name": "[concat(variables('topic name'), '/Microsoft.EventGrid/', variables('event subscription name'))]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[resourceId('Microsoft.EventGrid/topics', concat(parameters('topicNamePrefix'), '-', add(1, mod(copyIndex(), parameters('topicCount')))))]",
-                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1)), concat(variables('event hub prefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '-', add(1, mod(copyIndex(), parameters('topicCount')))))]"
+                "[resourceId('Microsoft.EventGrid/topics', variables('topic name'))]",
+                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', variables('event hub namespace'), variables('event hub name'))]"
             ],
             "properties": {
-                "eventDeliverySchema": "CloudEventV01Schema",
                 "destination": {
                     "endpointType": "EventHub",
                     "properties": {
-                        "resourceId": "[resourceId('Microsoft.EventHub/namespaces/eventhubs', concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1)), concat(variables('event hub prefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '-', add(1, mod(copyIndex(), parameters('topicCount')))))]"
+                        "resourceId": "[resourceId('Microsoft.EventHub/namespaces/eventhubs', variables('event hub namespace'), variables('event hub name'))]"
                     }
                 },
                 "filter": {
@@ -148,7 +95,7 @@
         {
             "apiVersion": "2019-04-01",
             "type": "Microsoft.Storage/storageAccounts",
-            "name": "[parameters('storageAccountName')]",
+            "name": "[variables('storage name')]",
             "location": "[resourceGroup().location]",
             "kind": "StorageV2",
             "sku": {
@@ -176,12 +123,13 @@
         {
             "apiVersion": "2019-08-01",
             "type": "Microsoft.Web/sites",
-            "name": "[parameters('functionAppName')]",
+            "name": "[variables('function app name')]",
             "location": "[resourceGroup().location]",
             "kind": "functionapp",
             "dependsOn": [
-                "[resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName'))]",
-                "[resourceId('Microsoft.Web/serverfarms', variables('app plan name'))]"
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storage name'))]",
+                "[resourceId('Microsoft.Web/serverfarms', variables('app plan name'))]",
+                "[resourceId('Microsoft.EventGrid/topics', variables('topic name'))]"
             ],
             "identity": {
                 "type": "SystemAssigned"
@@ -204,19 +152,31 @@
                         },
                         {
                             "name": "AzureWebJobsStorage",
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2019-04-01').keys[0].value)]"
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=',variables('storage name'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storage name')), '2019-04-01').keys[0].value)]"
                         },
                         {
                             "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
-                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('storageAccountName'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')),'2019-04-01').keys[0].value)]"
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storage name'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storage name')),'2019-04-01').keys[0].value)]"
                         },
                         {
                             "name": "WEBSITE_CONTENTSHARE",
-                            "value": "[toLower(parameters('functionAppName'))]"
+                            "value": "[toLower(variables('function app name'))]"
                         },
                         {
                             "name": "ApplicationInsightsAgent_EXTENSION_VERSION",
                             "value": "~2"
+                        },
+                        {
+                            "name": "TOPIC_ENDPOINT",
+                            "value": "[reference(variables('topic name')).endpoint]"
+                        },
+                        {
+                            "name": "TOPIC_KEY",
+                            "value": "[listKeys(variables('topic name'), '2019-06-01').key1]"
+                        },
+                        {
+                            "name": "EVENT_COUNT",
+                            "value": "[variables('event count')]"
                         }
                     ]
                 }
@@ -224,5 +184,11 @@
             "resources": [
             ]
         }
-    ]
+    ],
+    "outputs": {
+        "obj": {
+            "type": "object",
+            "value": "[listKeys(variables('topic name'), '2019-06-01')]"
+        }
+    }
 }
