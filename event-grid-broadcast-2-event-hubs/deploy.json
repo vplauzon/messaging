@@ -30,7 +30,9 @@
         }
     },
     "variables": {
-        "alphabet": "ABCDEFGHIJKLMNOPQRSTUVXYZ"
+        "alphabet": "ABCDEFGHIJKLMNOPQRSTUVXYZ",
+        "event hub prefix": "hub",
+        "event subscription prefix": "sub"
     },
     "resources": [
         {
@@ -43,6 +45,7 @@
             "name": "[concat(parameters('topicNamePrefix'), '-', add(1, copyIndex()))]",
             "location": "[resourceGroup().location]",
             "properties": {
+                "inputSchema": "CloudEventV01Schema"
             }
         },
         {
@@ -91,7 +94,7 @@
                 "count": "[mul(parameters('topicCount'), parameters('eventHubNamespaceCount'))]",
                 "name": "hub-loop"
             },
-            "name": "[concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '/hub-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '-', add(1, mod(copyIndex(), parameters('topicCount'))))]",
+            "name": "[concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '/', variables('event hub prefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '-', add(1, mod(copyIndex(), parameters('topicCount'))))]",
             "location": "[resourceGroup().location]",
             "dependsOn": [
                 "[resourceId('Microsoft.EventHub/namespaces', concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1)))]"
@@ -99,6 +102,32 @@
             "properties": {
                 "messageRetentionInDays": 1,
                 "partitionCount": 1
+            }
+        },
+        {
+            "type": "Microsoft.EventGrid/topics/providers/eventSubscriptions",
+            "apiVersion": "2019-06-01",
+            "copy": {
+                "count": "[mul(parameters('topicCount'), parameters('eventHubNamespaceCount'))]",
+                "name": "hub-loop"
+            },
+            "name": "[concat(parameters('topicNamePrefix'), '-', add(1, mod(copyIndex(), parameters('topicCount'))), '/Microsoft.EventGrid/', variables('event subscription prefix'), '-', add(1, div(copyIndex(), parameters('topicCount'))))]",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.EventGrid/topics', concat(parameters('topicNamePrefix'), '-', add(1, mod(copyIndex(), parameters('topicCount')))))]",
+                "[resourceId('Microsoft.EventHub/namespaces/eventhubs', concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1)), concat(variables('event hub prefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '-', add(1, mod(copyIndex(), parameters('topicCount')))))]"
+            ],
+            "properties": {
+                "eventDeliverySchema": "CloudEventV01Schema",
+                "destination": {
+                    "endpointType": "EventHub",
+                    "properties": {
+                        "resourceId": "[resourceId('Microsoft.EventHub/namespaces/eventhubs', concat(parameters('eventHubNamespacePrefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1)), concat(variables('event hub prefix'), '-', substring(variables('alphabet'), div(copyIndex(), parameters('topicCount')), 1), '-', add(1, mod(copyIndex(), parameters('topicCount')))))]"
+                    }
+                },
+                "filter": {
+                    "isSubjectCaseSensitive": false
+                }
             }
         }
     ]
