@@ -1,0 +1,50 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+    },
+    "variables": {
+        "unique suffix": "[uniqueString(resourceGroup().id)]",
+        "storage name": "[concat('storage', variables('unique suffix'))]",
+        "storage container name": "drop-zone",
+        "topic name": "[concat('biz-proc-topic-', variables('unique suffix'))]"
+    },
+    "resources": [
+        {
+            "apiVersion": "2019-04-01",
+            "type": "Microsoft.Storage/storageAccounts",
+            "name": "[variables('storage name')]",
+            "location": "[resourceGroup().location]",
+            "kind": "StorageV2",
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "properties": {
+                "supportsHttpsTrafficOnly": true
+            },
+            "resources": [
+                {
+                    "apiVersion": "2019-04-01",
+                    "type": "blobServices/containers",
+                    "name": "[concat('default/', variables('storage container name'))]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Storage/storageAccounts', variables('storage name'))]"
+                    ],
+                    "properties": {
+                        "publicAccess": "None"
+                    }
+                }
+            ]
+        },
+        {
+            "type": "Microsoft.EventGrid/topics",
+            "apiVersion": "2019-06-01",
+            "name": "[variables('topic name')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+            }
+        }
+    ],
+    "outputs": {
+    }
+}

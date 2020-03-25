@@ -1,2 +1,3 @@
 # Messaging
-Demos and POCs around different messaging technologies
+
+Demos and POCs around different messaging / eventing technologies

@@ -6,4 +6,4 @@ The concept is that of a Hub solution broadcasting data to different spoke solut
 
 [![Deploy button](http://azuredeploy.net/deploybutton.png)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fvplauzon%2Fmessaging%2Fmaster%2Fevent-grid-broadcast-2-event-hubs%2Fdeploy.json)
 
-See the [following article](TODO) for details.
+See the [following article](https://vincentlauzon.com/2020/02/25/broadcasting-events-to-multiple-solutions) for details.
