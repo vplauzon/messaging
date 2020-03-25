@@ -7,7 +7,10 @@
         "unique suffix": "[uniqueString(resourceGroup().id)]",
         "storage name": "[concat('storage', variables('unique suffix'))]",
         "storage container name": "drop-zone",
-        "topic name": "[concat('biz-proc-topic-', variables('unique suffix'))]"
+        "topic name": "[concat('biz-proc-topic-', variables('unique suffix'))]",
+        "blob app name": "blob-app",
+        "aggregation app name": "aggregation-app",
+        "biz process app name": "biz-process-app"
     },
     "resources": [
         {
@@ -42,6 +45,57 @@
             "name": "[variables('topic name')]",
             "location": "[resourceGroup().location]",
             "properties": {
+            }
+        },
+        {
+            "apiVersion": "2017-07-01",
+            "type": "Microsoft.Logic/workflows",
+            "name": "[variables('blob app name')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "triggers": {},
+                    "actions": {},
+                    "outputs": {}
+                },
+                "parameters": {}
+            }
+        },
+        {
+            "apiVersion": "2017-07-01",
+            "type": "Microsoft.Logic/workflows",
+            "name": "[variables('aggregation app name')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "triggers": {},
+                    "actions": {},
+                    "outputs": {}
+                },
+                "parameters": {}
+            }
+        },
+        {
+            "apiVersion": "2017-07-01",
+            "type": "Microsoft.Logic/workflows",
+            "name": "[variables('biz process app name')]",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "triggers": {},
+                    "actions": {},
+                    "outputs": {}
+                },
+                "parameters": {}
             }
         }
     ],
