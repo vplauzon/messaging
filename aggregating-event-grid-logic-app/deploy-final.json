@@ -102,6 +102,69 @@
                     "parameters": {
                     },
                     "triggers": {
+                        "extractBlobPath": {
+                            "inputs": "@split(triggerBody()?['subject'], '/')",
+                            "runAfter": {
+                            },
+                            "type": "Compose"
+                        },
+                        "validateBlobPath": {
+                            "actions": {
+                                "blob-accumulator-app": {
+                                    "inputs": {
+                                        "batchName": "default",
+                                        "content": "@triggerBody()?['subject']",
+                                        "host": {
+                                            "triggerName": "Batch_messages",
+                                            "workflow": {
+                                                "id": ""
+                                            }
+                                        }
+                                    },
+                                    "runAfter": {
+                                    },
+                                    "type": "SendToBatch"
+                                }
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "equals": [
+                                            "@length(outputs('extractBlobPath'))",
+                                            7
+                                        ]
+                                    },
+                                    {
+                                        "or": [
+                                            {
+                                                "equals": [
+                                                    "@outputs('extractBlobPath')[6]",
+                                                    "a.txt"
+                                                ]
+                                            },
+                                            {
+                                                "equals": [
+                                                    "@outputs('extractBlobPath')[6]",
+                                                    "b.txt"
+                                                ]
+                                            },
+                                            {
+                                                "equals": [
+                                                    "@outputs('extractBlobPath')[6]",
+                                                    "c.txt"
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            },
+                            "runAfter": {
+                                "extractBlobPath": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "If"
+                        }
                     },
                     "actions": {
                     },
